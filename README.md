@@ -45,4 +45,16 @@ for example:
      use :RenderTarget           # mix in  "mixins/rendertarget.rb"
   end
   
+  
+#and in mixins/rendertarget.rb
+  int   :x
+  int   :y
+  has_a :texture, :Texture
+  action :update do 
+  # you may need to insert C++ code directly as a mixin plugin provider, use a backtick
+  `  
+     printf("Update at %d, %d, %d", x, y, RubyValue(texture).call("texid"));
+   
+  `
+  end
 ```
