@@ -4,6 +4,11 @@ r-core
 use ruby to write core logic to cpp applications
 
 
+
+Requirement
+-----------
+You need an rmk https://github.com/Artoria/rmk
+
 Usage
 -----
 
