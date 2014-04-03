@@ -15,7 +15,7 @@ Shell
 ruby rmk r-core init Artoria MyApp
 ```
 
-generates an MyApp directory as well as a github repo Artoria/MyApp
+generates an MyApp directory and its hierachy as well as a github repo Artoria/MyApp
 
 
 ```shell
