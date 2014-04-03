@@ -17,14 +17,14 @@ Shell
 -----
 
 ```shell
-ruby rmk r-core init Artoria MyApp
+ruby rmk.rb r-core init Artoria MyApp
 ```
 
 generates an MyApp directory and its hierachy as well as a github repo Artoria/MyApp
 
 
 ```shell
-ruby rmk r-core build
+ruby rmk.rb r-core build
 ```
 
 generates output\main.cpp and other cpp you specified
@@ -32,7 +32,7 @@ generates output\main.cpp and other cpp you specified
 
 
 ```shell
-ruby rmk r-core compile main.cpp -o main.exe
+ruby rmk.rb r-core compile main.cpp -o main.exe
 ```
 
 switch to 'output' directory and compiles main.cpp , *compile* command only gives -I and -L arguments to gcc. 
