@@ -1,0 +1,47 @@
+    class <%= self.to_s %>{
+       int _refcount;
+       <% self.objs.each do |x|%>
+	       <%= case x[0]
+		   when :action
+			   u = CPPWriter.new
+			   u.instance_exec(&x[2])
+"       public: static VALUE #{x[1]}(VALUE self){
+			#{self} *obj;
+			Data_Get_Struct(self, #{self}, obj);
+			obj->instance_#{x[1]}();
+			return Qnil;
+		      }
+	private: void instance_#{x[1]}(){
+			#{u.io}
+	}
+"
+	      when :has_a 
+		      render "data.type.inc", klass: self,var: x[1]
+	      when :struct
+		 render "struct.type.inc", klass: self,var: x[1], type: x[2]
+              when :bool, :flag
+		 render "bool.type.inc", klass: self,var: x[1]
+              when :int
+   	          render "int.type.inc", klass: self,var: x[1]
+	      when :pointer
+		      render "pointer.type.inc", klass: self,var: x[1], type: x[2]
+	      when :type
+		      render "type.type.inc", klass: self,var: x[1], type: x[2]
+	      when :vfunc
+		 render "function.inc", klass: self,var: x[1], block:x[2]
+           end %>
+       <% end %>
+
+      public:
+       static void data_free(void *p){
+	 if(--((<%=self.to_s%>*)p)->_refcount) delete (<%=self.to_s%>*)p;
+       }
+       static void data_mark(void *p){
+         ++((<%=self.to_s%>*)p)->_refcount;
+       }
+       static VALUE ruby_alloc(VALUE klass){
+          <%=self.to_s%>* object = new <%=self.to_s%>();
+          return Data_Wrap_Struct(klass, data_mark, data_free, object);
+       }
+    };
+

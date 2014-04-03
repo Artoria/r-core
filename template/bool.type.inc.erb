@@ -1,0 +1,12 @@
+        private: bool <%=self[:var]%>;
+	public: static VALUE get_<%=self[:var]%>(VALUE self){
+	 	<%=self[:klass]%>* s;
+	        Data_Get_Struct(self, <%=self[:klass]%>, s);
+		return s-><%=self[:var]%> ? Qtrue : Qfalse;
+	 }
+         static VALUE set_<%=self[:var]%>(VALUE self, VALUE newvalue){
+	 	<%=self[:klass]%>* s;
+	        Data_Get_Struct(self, <%=self[:klass]%>, s);
+		s-><%=self[:var]%> = RTEST(newvalue);
+		return newvalue;
+	 }

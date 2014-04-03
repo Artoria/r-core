@@ -1,0 +1,91 @@
+#include <ruby.h>
+#include <vector>
+#include <gl/gl.h>
+#include <gl/glu.h>
+#define 	VGUI_MESA   0
+#define 	GL_ABGR_EXT   0x8000
+#define 	GL_BGR   0x80E0
+#define 	GL_BGRA   0x80E1
+#define 	GL_UNSIGNED_SHORT_5_6_5   0x8363
+#define 	GL_UNSIGNED_SHORT_5_5_5_1   0x8034
+#define 	GL_UNSIGNED_SHORT_1_5_5_5_REV   0x8066
+
+struct RubyValue{
+  VALUE val;
+  RubyValue(VALUE val):val(val){}
+  RubyValue(int v):val(INT2NUM(v)){}
+  RubyValue(char* v):val(rb_str_new2(v)){}
+  RubyValue(double v):val(rb_float_new(v)){}
+
+  operator double () const {
+	return NUM2DBL(val);
+  }
+  VALUE getValue() const {
+	  return val;
+  }
+
+  <% 20.times{|x| %>
+		  RubyValue call(
+   <%=['const char *name', *x.times.map{|i| "RubyValue _#{i}"}].join(",")%>		  ){
+			  return RubyValue(rb_funcall(
+   <%=["val", "rb_intern(name)",  x.to_s, *x.times.map{|i| "_#{i}"}].join(",")%>
+   ));
+     
+    }  
+  <% } %>
+  
+
+  operator char *() const{
+	return RSTRING_PTR(val);
+  }
+  operator int() const {
+	return NUM2INT(val);
+  }
+   operator long int() const {
+	return NUM2INT(val);
+  }
+  template <typename T>
+  T cast() const{
+	  return (T)(*this);
+  }
+};
+
+static struct Global{
+   <% rmk[:all_modules].each do |x| %> 
+      <%= render 'ruby_global_def.cpp.inc', x%>;
+   <% end %>      
+}G;  
+
+
+
+class RGSS{
+	public:
+	<% rmk[:classes].each do |x| %>
+	   class <%=x%>;
+	<% end %>
+   <% rmk[:classes].each do |x| %>
+     <%= render 'ruby_class.cpp.inc', x %>
+   <% end %>
+    
+
+   static void init(){
+       
+     <% rmk[:classes].each do |x| %>
+        <%= render 'ruby_class_def.cpp.inc', x %>
+     <% end %>
+
+   } 
+};
+
+int main(int argc, char **argv){
+	ruby_sysinit(&argc, &argv);
+	ruby_init();
+	ruby_init_loadpath();
+	RGSS::init();
+	int error;
+	rb_protect((VALUE (*)(VALUE))rb_require, VALUE("./main.rb"), &error);
+	if(error != 0){
+		printf("Error : %d\n", error);
+	}
+	return 0;
+}

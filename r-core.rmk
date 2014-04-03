@@ -1,0 +1,218 @@
+rmk.task :config do
+  require 'FileUtils'
+  require 'yaml'
+  require 'erb'
+  rmk.config.update(
+    rgss_classes:     %i[ Rect Color Tone Font Table Bitmap Viewport Sprite Window Plane Tilemap   ],
+    rgss_modules:     %i[ Graphics Audio Input RPG ],
+    control_classes:  %i[ MainWindow ScriptRunner ]
+  )
+  rmk.config.update(
+    templates: %i[ main.cpp ],
+    mixins:  Dir.glob(rmk.resolve_path("mixins/*.rb")).to_a
+  )
+  rmk.config.update(
+    filebrowser: "cmd /c start explorer.exe",
+    browser:     "cmd /c start firefox.exe",
+    editor:      "notepad.exe"
+  )
+end
+
+def mkdir(a)
+    puts "\t>mkdir #{a}"
+    FileUtils.mkdir_p(a)  
+end
+
+def copy_template(a)
+    puts "\tcopy template #{a}"
+    FileUtils.cp(rmk.resolve_path("template/#{a}.erb"), "template/#{a}.erb")
+end
+
+def set(a, b)
+  x = YAML.load(IO.binread('config.yml'))
+  x[a] = b
+  IO.binwrite('config.yml', YAML.dump(x))
+end
+
+def get(a)
+  x = YAML.load(IO.binread('config.yml'))
+  x[a]
+end
+
+rmk.task :init, [:config] do |user, repo|  
+  puts("\tinit repo")
+  system("git init #{repo}")
+  Dir.chdir(repo)
+  system("git remote add origin https://github.com/#{user}/#{repo} ")
+  rmk.run :new, "config", "config.yml"
+  rmk.run :create_hierachy, repo
+  set(:user, user)
+  set(:repo, repo)
+  set(:repourl, "https://github.com/#{user}/#{repo}")
+  Dir.chdir("..")
+end
+
+rmk.task :new, [:config] do |type, name|
+  classes = "./src/classes/"
+  modules = "./src/modules/"
+  case type
+     when "config"
+         open("config.yml", "wb"){|f| f.write YAML.dump({})}
+     when "class"
+         mkdir File.join(classes, name.to_s)
+         puts "\t>create file #{File.join(classes, name.to_s)+"/entry.rb"}"
+         IO.write(File.join(classes, name.to_s)+"/entry.rb", 
+%{
+class #{name.to_s.capitalize} < RGSS::GameClass
+
+end
+})
+     when "module"
+         mkdir File.join(modules, name.to_s)
+         puts "\t>create file #{File.join(modules, name.to_s)+"/entry.rb"}"
+         IO.write(File.join(modules, name.to_s)+"/entry.rb", 
+%{
+class #{name.to_s.capitalize} < RGSS::GameModule
+
+end
+})
+   
+  end
+end
+
+rmk.task :copy_mixins do 
+  mkdir 'mixins'
+  rmk[:mixins].each{|x|
+    puts "\t>copy mixin #{x} "
+    FileUtils.cp x, "mixins/#{File.basename(x)}"
+  }
+end
+
+rmk.task :create_hierachy, [:config] do |dir|
+  a = rmk.config[:rgss_classes]  + rmk.config[:control_classes]
+  a.each{|x|
+    rmk.run :new, 'class', x
+  }
+  rmk.config[:rgss_modules].each{|x|
+    rmk.run :new, 'module', x
+  }
+  mkdir "output"
+  mkdir "template"
+  rmk[:templates].each{|x| copy_template(x) }
+  rmk.run :copy_mixins
+end
+
+rmk.task :all_files, [:config] do
+  rmk.config[:files] = Dir.glob("src/**/*.rb")
+end
+
+rmk.task :git, [:config] do |*a|
+  run_external "git #{a.join(' ')}"
+end
+
+def render(name, obj)
+  ERB.new(File.read("template/#{name}.erb")).result(obj.instance_eval{binding})
+end
+
+def render_class klass
+  render('ruby_class.cpp', klass)
+end
+
+rmk.task :render_files, [:config] do
+  rmk[:templates].each{|x|
+    y = File.read("template/#{x}.erb")
+    open("output/#{x}", "wb") do |f|
+      f.write ERB.new(y).result(binding)
+    end
+  }
+end
+
+def funcname_encode(a)
+  a.to_s.gsub(/[^A-Za-z0-9_]/){
+    "$#{$&.ord}$"
+  }
+end
+
+USEARGS = []
+def use_args
+  USEARGS[-1]
+end
+
+rmk.task :load_classes, [:config, :all_files] do
+  class RGSS
+     class GameModule
+
+       def self.objs
+         @objs ||= []
+       end
+       def self.method_missing(*a, &b)
+         objs << [*a, b]
+       end
+       def self.use(a, *b)
+	USEARGS.push b
+        class_eval File.read "mixins/#{a}.rb"
+	USEARGS.pop
+       end
+     end
+
+     class GameClass < GameModule
+     end
+ 
+  end
+  rmk.config[:files].each{|x|
+    load x
+  }
+  rmk[:classes] = []
+  rmk[:modules] = []
+  ObjectSpace.each_object(Class) do |x|
+    next unless x < RGSS::GameClass && 
+    rmk[:classes] << x
+  end
+  ObjectSpace.each_object(Class) do |x|
+    next unless x < RGSS::GameModule && !(x <= RGSS::GameClass)
+    rmk[:modules] << x
+  end
+  rmk[:all_modules] = rmk[:classes] + rmk[:modules]
+end
+
+def run_external(a)
+  puts "Executing #{a}"
+  system a
+end
+
+class CPPWriter
+  attr_accessor :io
+  def initialize(io = "")
+     self.io = io
+  end
+  def `(str)
+     self.io << str
+  end
+end
+
+rmk.task :open, [:config] do |name, *a|
+  case name
+    when "-edit"
+      run_external "#{rmk[:editor] || get(:editor)} src/classes/#{a[0]}/entry.rb"
+    when "-repo"
+      run_external "#{rmk[:browser]} #{get(:repourl)}"
+    else
+      run_external "#{rmk[:filebrowser]} #{name}"
+  end
+end
+
+rmk.task :build, [:config, :all_files, :load_classes] do
+  if rmk.ft_cmp(["output/main.cpp"], rmk[:files]) < 0
+     puts "\tup-to-date"
+     next
+  end
+  rmk.run :render_files
+end
+
+rmk.task :compile, [:build] do |*args|
+  hostruby = get(:hostruby) 
+  Dir.chdir("output")
+  run_external "g++ #{args.join(' ')} -I#{hostruby}/include/ruby-2.0.0 -I#{hostruby}/include/ruby-2.0.0/i386-mingw32 #{hostruby}/bin/msvcrt-ruby200.dll"
+end
+
+rmk.runargs

@@ -1,0 +1,59 @@
+	<% if self[:block].arity != -1 %>
+	public : 
+	static VALUE <%=funcname_encode(self[:var])%>(
+	  <%= (["VALUE self"] + self[:block].parameters.size.times.map{|i|
+	      "VALUE _#{i}"
+	   }).join(",") %>
+	){
+	  <%= self[:klass] %>* obj;
+	  Data_Get_Struct(self,   <%= self[:klass]%>, obj);
+	  return obj->instance_<%=funcname_encode(self[:var])%>(
+	   <%= (self[:block].parameters.size.times.map{|i|
+	      "_#{i}"
+	   }).join(",") %>
+	  );
+	}
+
+       VALUE instance_<%=funcname_encode(self[:var])%>(
+	  <%= (self[:block].parameters.size.times.map{|i|
+	      "VALUE _#{i}"
+	   }).join(",") %>
+	){
+	  <%= self[:block].parameters.map.with_index{|a, i|
+	      "RubyValue #{a[1]}(_#{i});"
+	   }.join("") %>
+
+	   <%=
+	    u = CPPWriter.new
+	    u.instance_exec(&self[:block])
+	    u.io	   
+    %>
+	   return Qnil;
+    }
+
+<% else %>
+	public : 
+	static VALUE <%=funcname_encode(self[:var])%>(
+ 		int argc, VALUE *argv, VALUE self
+	){
+	  <%= self[:klass] %>* obj;
+	  Data_Get_Struct(self,   <%= self[:klass]%>, obj);
+ 	   std::vector<RubyValue>args(argv, argv+argc);
+	  return obj->instance_<%=funcname_encode(self[:var])%>(
+	     args
+	   );
+
+	}
+
+	VALUE instance_<%=funcname_encode(self[:var])%>(
+		std::vector<RubyValue>& <%=self[:block].parameters[-1][-1]%>
+	){
+
+	   <%=
+	    u = CPPWriter.new
+	    u.instance_exec(&self[:block])
+	    u.io
+	    %>
+	return Qnil;
+        }
+<%end%>

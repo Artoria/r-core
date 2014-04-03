@@ -1,0 +1,12 @@
+        private: <%=self[:type]%> <%=self[:var]%>;
+	public: static VALUE get_<%=self[:var]%>(VALUE self){
+	 	<%=self[:klass]%>* s;
+		Data_Get_Struct(self, <%=self[:klass]%>, s);
+		return INT2NUM(reinterpret_cast<int>(s-><%=self[:var]%>));
+	 }
+         static VALUE set_<%=self[:var]%>(VALUE self, VALUE newvalue){
+	 	<%=self[:klass]%>* s;
+		Data_Get_Struct(self, <%=self[:klass]%>, s);
+		s-><%=self[:var]%> = reinterpret_cast< <%=self[:type]%> >(NUM2INT(newvalue));
+		return newvalue;
+	 }

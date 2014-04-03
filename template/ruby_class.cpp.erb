@@ -1,0 +1,10 @@
+    class <%= self.to_s %>{
+       <% self.objs.each do |x|%>
+          <%= case x[0]
+              when :has_a 
+               "\t\t#{x[2]}* #{x[1]};"
+              when :bool, :flag
+                "bool #{x[1]};"
+           end %>
+       <% end %>
+    };

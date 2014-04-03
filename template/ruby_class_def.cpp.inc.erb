@@ -1,0 +1,17 @@
+    G.<%=self.to_s%> = rb_define_class(<%=self.to_s.inspect%>, rb_cObject);
+    rb_define_alloc_func(G.<%=self.to_s%>, <%=self.to_s%>::ruby_alloc);
+    <% self.objs.each do |x|%>
+	    <% if x[0] == :action %>
+	      	    rb_define_method(G.<%=self.to_s%>, <%=x[1].to_s.inspect%>, (VALUE (*)(ANYARGS))&<%=self.to_s%>::<%=x[1]%>, 0);
+
+    <% elsif x[0] == :vfunc %>
+	    rb_define_method(G.<%=self.to_s%>, <%=(x[1].to_s).inspect%>, (VALUE (*)(ANYARGS))&<%=self.to_s%>::<%=funcname_encode(x[1])%>,<%=x[2].arity%> );
+
+    <% else %>
+	    rb_define_method(G.<%=self.to_s%>, <%=x[1].to_s.inspect%>, (VALUE (*)(ANYARGS))&<%=self.to_s%>::get_<%=x[1]%>, 0);
+
+	    rb_define_method(G.<%=self.to_s%>, <%=(x[1].to_s+'=').inspect%>, (VALUE (*)(ANYARGS))&<%=self.to_s%>::set_<%=x[1]%>,1 );
+
+	<% end %>
+    <% end %>
+
